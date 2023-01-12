@@ -269,6 +269,26 @@ class InteractiveModel(abc.ABC):
         num_microbatches=None)
 
   @property
+  def trainer(self):
+    return self._trainer
+
+  @property
+  def partitioner(self):
+    return self._partitioner
+
+  @property
+  def model(self):
+    return self._model
+
+  @property
+  def train_state(self):
+    return self._train_state
+
+  @property
+  def train_state_axes(self):
+    return self._train_state_axes
+
+  @property
   def train_summary(self):
     return self._train_summary.result()
 
@@ -359,21 +379,24 @@ class InteractiveModel(abc.ABC):
           train_iter, 1, start_step=first_step)
     except trainer_lib.PreemptionError as e:
       logging.info("Saving emergency checkpoint.")
-      self._checkpoint_manager.save(
-          self._trainer.train_state,
-          self._save_checkpoint_cfg.state_transformation_fns)
+      self.save_checkpoint()
       logging.info("Saving emergency checkpoint done.")
       raise e
 
     # Save a checkpoint.
     logging.info("Saving checkpoint.")
-    self._checkpoint_manager.save(
-        self._trainer.train_state,
-        self._save_checkpoint_cfg.state_transformation_fns)
+    self.save_checkpoint()
 
     # Wait until computations are done before exiting
     utils.sync_global_devices("complete")
     self._train_state = self._trainer.train_state
+
+  def save_checkpoint(self):
+    """Saves model checkpoint."""
+    self._checkpoint_manager.save(
+        self._trainer.train_state,
+        self._save_checkpoint_cfg.state_transformation_fns,
+    )
 
   def infer_with_preprocessors(
       self, mode: InferenceType, examples: Sequence[Union[str, dict[str, str]]],
